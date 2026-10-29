@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-SMi5Wcz5k8/hgDiDoRXuVNsFnryUo6aeBhlMke5QlrE='; style-src 'sha256-tqhF8nSeWxbLHIzL9eRbdO+QCXeDqh/h/M7eNIZ8xB0=' 'sha256-QJi898jMv80t3IkERZ19BYdK7sqMaokxdT12U8xLt7g=' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api-open.data.gov.sg https://api.data.gov.sg; img-src data:; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SG haze-rox GO / NO GO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one phone-width column — region picker, two big verdict tiles, region strip, trend, rules. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#1c2530; --muted:#5e6b78; --line:#d5dbe2; --accent:#c96a1b;
+  --go:#1f8a4c; --go-bg:#e2f4e9; --amber:#a86a00; --amber-bg:#fdf1d6; --red:#c2332b; --red-bg:#fbe3e1;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12171d; --surface:#1b222a; --ink:#e7ecf1; --muted:#95a3b1; --line:#2c3640; --accent:#e8924a;
+  --go:#4fc985; --go-bg:#16331f; --amber:#f0b445; --amber-bg:#3a2d10; --red:#f26b62; --red-bg:#3d1a18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171d; --surface:#1b222a; --ink:#e7ecf1; --muted:#95a3b1; --line:#2c3640; --accent:#e8924a;
+  --go:#4fc985; --go-bg:#16331f; --amber:#f0b445; --amber-bg:#3a2d10; --red:#f26b62; --red-bg:#3d1a18; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:800;font-size:2.1rem;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase}
+h1 span{color:var(--accent)}
+.stamp{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.label{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.82rem;color:var(--muted);margin:0 0 6px}
+.regions{display:flex;gap:6px;flex-wrap:wrap}
+.regions button{flex:1 1 auto;min-width:64px;font:inherit;font-family:var(--display);font-weight:700;font-size:1rem;text-transform:uppercase;letter-spacing:.04em;
+  padding:9px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.regions button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.regions button:focus-visible,.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.reading{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.big{font-family:var(--display);font-weight:800;font-size:4.2rem;line-height:.9;font-variant-numeric:tabular-nums}
+.unit{color:var(--muted);font-size:.9rem}
+.band{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 9px;border-radius:999px;font-size:.9rem}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0;border:1px solid transparent}
+.tile h2{margin:0;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
+.verdict{font-family:var(--display);font-weight:800;font-size:1.9rem;line-height:1;text-transform:uppercase}
+.tile p{margin:0;font-size:.88rem}
+.s-go{background:var(--go-bg);color:var(--go);border-color:var(--go)} .s-go p{color:var(--ink)}
+.s-amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)} .s-amber p{color:var(--ink)}
+.s-red{background:var(--red-bg);color:var(--red);border-color:var(--red)} .s-red p{color:var(--ink)}
+.s-none{background:var(--surface);color:var(--muted);border-color:var(--line)}
+.warn{background:var(--amber-bg);color:var(--ink);border-left:4px solid var(--amber);padding:10px 12px;border-radius:6px;font-size:.88rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line);font-size:.9rem}
+th{font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-size:.78rem;color:var(--muted);font-weight:700}
+td.num{text-align:right} th.num{text-align:right}
+tr.sel td{font-weight:700}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#trend{display:block;width:100%;height:auto}
+.rules{display:flex;flex-direction:column;gap:6px;font-size:.88rem}
+.rules div{display:flex;gap:10px;align-items:flex-start}
+.rules b{font-variant-numeric:tabular-nums;min-width:62px;font-family:var(--display);font-size:1rem}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:700;font-size:.88rem;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none}
+.foot{color:var(--muted);font-size:.78rem}
+.quip{margin:8px 0 0;font-style:italic;color:var(--muted);font-size:.9rem}
+@media (max-width:360px){.tiles{grid-template-columns:1fr}}
+html,body{overscroll-behavior-y:contain}
+.ptr{position:fixed;left:50%;top:0;z-index:10;transform:translate(-50%,-56px);background:var(--ink);color:var(--bg);font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:.85rem;padding:8px 14px;border-radius:999px;box-shadow:0 2px 10px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap}
+.ptr.snap{transition:transform .25s ease}
+.cca{display:flex;flex-direction:column;gap:12px}
+.cca-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cca-head h2{margin:0;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
+.pill{font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:1.05rem;padding:4px 12px;border-radius:999px;border:1px solid transparent}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{border:1px solid var(--line);border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.check .k{font-size:.78rem;color:var(--muted)}
+.check .v{font-family:var(--display);font-weight:800;font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.check .lim{font-size:.8rem;font-weight:700}
+.check.over{border-color:var(--red)} .check.over .lim{color:var(--red)}
+.check.near{border-color:var(--amber)} .check.near .lim{color:var(--amber)}
+.check.ok .lim{color:var(--go)}
+.cca-now{margin:0;font-size:.9rem}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.86rem}
+.steps li{display:flex;gap:10px;align-items:flex-start;padding:6px 8px;border-radius:6px}
+.steps li b{min-width:74px;font-family:var(--display);font-size:1rem;font-variant-numeric:tabular-nums}
+.steps li.next{background:var(--amber-bg);outline:1px solid var(--amber)}
+.psi5{display:block;margin-top:6px;padding:7px 9px;border-radius:6px;border:1px solid var(--line);background:var(--surface)}
+.psi5 .p5v{font-family:var(--display);font-weight:800;font-size:1.25rem;font-variant-numeric:tabular-nums}
+.psi5 .p5s{font-weight:700}
+.psi5.over{border-color:var(--red)} .psi5.over .p5s{color:var(--red)}
+.psi5.near{border-color:var(--amber)} .psi5.near .p5s{color:var(--amber)}
+.psi5.ok .p5s{color:var(--go)}
+.psi5 .p5all{display:block;color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+@media (max-width:360px){.checks{grid-template-columns:1fr}}
+.m0{margin:0}.xscroll{overflow-x:auto}.mt8{margin:8px 0 0}
+</style>
+<style>
+body{margin:0}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.rbtn{font:inherit;font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:1rem;display:inline-flex;align-items:center;gap:7px;padding:9px 16px;min-height:44px;border-radius:8px;border:0;background:var(--ink);color:var(--bg);cursor:pointer}
+.rbtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.rbtn[disabled]{opacity:.6;cursor:default}
+.rbtn svg{width:17px;height:17px}
+.rbtn.busy svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rbtn.busy svg{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="ptr" id="ptr" role="status" aria-live="polite"></div>
+<div class="wrap">
+  <header>
+    <h1>SG haze-rox <span>GO / NO GO</span></h1>
+    <div class="hdr-right"><button type="button" class="rbtn" id="refreshBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg><span>Refresh</span></button><div class="stamp" id="stamp">Loading readings…</div><div class="stamp" id="refreshed"></div></div>
+  </header>
+
+  <section aria-label="Region">
+    <p class="label">Your area</p>
+    <div class="regions" id="regions"></div>
+  </section>
+
+  <section>
+    <p class="label">1-hr PM2.5 now</p>
+    <div class="reading"><span class="big" id="pm">–</span><span class="unit">µg/m³</span><span class="band" id="band"></span></div>
+    <p class="quip" id="quip"></p>
+  </section>
+
+  <div id="fetchErr" class="warn" role="alert" hidden></div>
+  <div id="stale" class="warn" hidden></div>
+
+  <section class="tiles" aria-label="Training calls">
+    <div class="tile s-none" id="t-easy"><h2>Easy Z2 run</h2><div class="verdict">–</div><p class="call"></p></div>
+    <div class="tile s-none" id="t-hard"><h2>Hard session</h2><div class="verdict">–</div><p class="call"></p></div>
+  </section>
+
+  <section class="card cca" id="cca" aria-label="SP-CCA training">
+    <div class="cca-head"><h2>SP-CCA training · <span id="ccaRegion"></span></h2><span class="pill s-none" id="ccaPill">–</span></div>
+    <div class="checks">
+      <div class="check" id="ckPsi"><span class="k">24-hr PSI</span><span class="v" id="ckPsiV">–</span><span class="lim" id="ckPsiL">Cancel above 200</span></div>
+      <div class="check" id="ckPm"><span class="k">1-hr PM2.5</span><span class="v" id="ckPmV">–</span><span class="lim" id="ckPmL">Cancel above 150</span></div>
+    </div>
+    <p class="cca-now" id="ccaNow"></p>
+    <ol class="steps" id="ccaSteps">
+      <li data-at="17:00"><b>5:00pm</b><span>Day before. Decision from NEA's 24-hr PSI forecast. Cancelled if above 200, for both morning and afternoon sessions. Email by 6pm.<span class="psi5" id="psi5" hidden></span></span></li>
+      <li data-at="session"><b>6:30am /<br>12:30pm</b><span>Morning and afternoon sessions. If the PSI forecast passes 200 or 1-hr PM2.5 passes 150 after 5pm, the cancellation goes to the WhatsApp group by 6:30am for the morning session and by 12:30pm for the afternoon.<span class="psi5" id="pm630" hidden></span><span class="psi5" id="pm1230" hidden></span></span></li>
+    </ol>
+    <p class="foot m0">The CCA uses NEA's 24-hr PSI <em>forecast</em>, which this feed doesn't carry. The PSI shown is the latest 24-hr reading, so check the forecast on haze.gov.sg. A cancellation, once sent, is final. The WhatsApp group or email is the official word.</p>
+  </section>
+
+  <section class="card">
+    <p class="label">All regions</p>
+    <div class="xscroll"><table>
+      <thead><tr><th>Region</th><th class="num">PM2.5 1-hr</th><th class="num">PSI 24-hr</th><th>Hard session</th><th>CCA</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+
+  <section class="card" id="trendCard" hidden>
+    <p class="label" id="trendLabel">Last hours</p>
+    <svg id="trend" viewBox="0 0 340 150" role="img" aria-label="Hourly PM2.5 trend"></svg>
+    <p class="foot mt8" id="trendNote"></p>
+  </section>
+
+  <section class="card">
+    <p class="label">How the call is made</p>
+    <div class="rules">
+      <div><b>0–55</b><span>Normal. Train outdoors as planned.</span></div>
+      <div><b>56–150</b><span>Elevated. Short easy run only if you feel fine. Threshold, long runs and stations go indoors.</span></div>
+      <div><b>151+</b><span>High. Everything indoors.</span></div>
+      <div><b>Always</b><span>Stop if you get a scratchy throat, a cough or tight breathing, whatever the number says.</span></div>
+      <div><b>CCA</b><span>Cancelled if the 24-hr PSI forecast is above 200 or 1-hr PM2.5 is above 150. Bring your inhaler if you use one. To skip because of haze, use the SP-CCA FormSG absence form.</span></div>
+    </div>
+  </section>
+
+  <section class="links">
+    <a class="btn" href="https://www.haze.gov.sg" target="_blank" rel="noopener noreferrer">Check haze.gov.sg</a>
+  </section>
+
+  <p class="foot">Your lungs are not a Hyrox station. Keep it that way.</p>
+  <p class="foot">Readings: NEA via data.gov.sg, fetched live by this page when you open it, tap Refresh, or every 15 minutes while it's open. NEA publishes new figures once an hour. Bands follow NEA's 1-hr PM2.5 descriptors. For the newest figures, the NEA myENV app updates fastest.</p>
+</div>
+
+<script id="haze-data" type="application/json">
+{"pm25":{"time":"2026-10-21T17:00:00+08:00","north":29,"south":56,"east":47,"west":74,"central":57},"psi":{"time":"2026-10-21T17:00:00+08:00","psi24":{"north":80,"south":87,"east":92,"west":122,"central":109},"pm25_24":{"north":37,"south":44,"east":49,"west":76,"central":64}},"psi5pm":{"time":"2026-10-21T17:00:00+08:00","psi24":{"north":80,"south":87,"east":92,"west":122,"central":109}},"history":[{"central":67,"east":57,"north":19,"south":47,"t":"2026-10-20T18:00:00+08:00","west":73},{"central":76,"east":56,"north":30,"south":54,"t":"2026-10-20T19:00:00+08:00","west":79},{"central":80,"east":54,"north":32,"south":46,"t":"2026-10-20T20:00:00+08:00","west":93},{"central":74,"east":50,"north":39,"south":39,"t":"2026-10-20T21:00:00+08:00","west":94},{"central":76,"east":46,"north":46,"south":37,"t":"2026-10-20T22:00:00+08:00","west":76},{"central":68,"east":54,"north":41,"south":36,"t":"2026-10-20T23:00:00+08:00","west":74},{"central":70,"east":46,"north":38,"south":41,"t":"2026-10-21T00:00:00+08:00","west":75},{"central":62,"east":37,"north":38,"south":38,"t":"2026-10-21T01:00:00+08:00","west":76},{"central":58,"east":29,"north":42,"south":36,"t":"2026-10-21T02:00:00+08:00","west":73},{"central":54,"east":40,"north":52,"south":34,"t":"2026-10-21T03:00:00+08:00","west":71},{"central":59,"east":49,"north":44,"south":41,"t":"2026-10-21T04:00:00+08:00","west":77},{"central":57,"east":53,"north":40,"south":51,"t":"2026-10-21T05:00:00+08:00","west":81},{"central":55,"east":56,"north":34,"south":39,"t":"2026-10-21T06:00:00+08:00","west":81},{"central":59,"east":53,"north":52,"south":35,"t":"2026-10-21T07:00:00+08:00","west":81},{"central":70,"east":52,"north":46,"south":33,"t":"2026-10-21T08:00:00+08:00","west":81},{"central":81,"east":53,"north":42,"south":41,"t":"2026-10-21T09:00:00+08:00","west":70},{"central":71,"east":61,"north":56,"south":51,"t":"2026-10-21T10:00:00+08:00","west":86},{"central":67,"east":53,"north":33,"south":46,"t":"2026-10-21T11:00:00+08:00","west":82},{"central":56,"east":48,"north":59,"south":51,"t":"2026-10-21T12:00:00+08:00","west":67},{"central":46,"east":45,"north":17,"south":53,"t":"2026-10-21T13:00:00+08:00","west":55},{"central":49,"east":40,"north":14,"south":39,"t":"2026-10-21T14:00:00+08:00","west":63},{"central":55,"east":42,"north":24,"south":49,"t":"2026-10-21T15:00:00+08:00","west":65},{"central":58,"east":44,"north":28,"south":55,"t":"2026-10-21T16:00:00+08:00","west":69},{"t":"2026-10-21T17:00:00+08:00","north":29,"south":56,"east":47,"west":74,"central":57}],"fetchedAt":"2026-10-21T17:06:12+08:00"}
+</script>
+<script>
+const REGIONS=["north","east","central","west","south"];
+let region="east", latest=null;
+try{latest=JSON.parse(document.getElementById("haze-data").textContent);}catch(e){}
+
+function band(v){
+  if(v==null) return null;
+  if(v<=55) return {name:"Normal",s:"go"};
+  if(v<=150) return {name:"Elevated",s:"amber"};
+  if(v<=250) return {name:"High",s:"red"};
+  return {name:"Very high",s:"red"};
+}
+function calls(pm,psi){
+  if(pm==null) return null;
+  if(pm<=55){
+    const hard = psi>100
+      ? {s:"amber",v:"Shorter",p:"Hourly air is OK but the 24-hr PSI is still unhealthy. Keep it shorter and back off if your throat gets scratchy."}
+      : {s:"go",v:"Go",p:"Air is clean. Train outdoors as planned."};
+    return {easy:{s:"go",v:"Go",p:"Run outdoors as planned."},hard};
+  }
+  if(pm<=150) return {
+    easy:{s:"amber",v:"Short only",p:"Keep it short and easy. Stop at any throat or chest irritation."},
+    hard:{s:"red",v:"Indoors",p:"Move threshold, long runs and station work to the treadmill, erg or gym."}};
+  return {
+    easy:{s:"red",v:"Indoors",p:"Run on a treadmill today."},
+    hard:{s:"red",v:"Indoors",p:"Everything indoors today."}};
+}
+const QUIPS={
+  "Normal":["The air is clean enough to be suspicious. Get outside before someone sets fire to something.","Clean air. The only excuse left is the humidity, and that one never goes away."],
+  "Elevated":["The air has texture today. An easy jog is fine, but do your heavy breathing indoors.","Visibility is down, and motivation isn't far behind."],
+  "High":["You can't see Bukit Timah, and Bukit Timah can't see you. Treadmill.","An outdoor sled push today is a sled push and a smoke test at the same time.","Every breath outside is a free sample. Say no thanks."],
+  "Very high":["The air is partly solid now. Do your stations indoors, and be grateful for the wall balls.","At this point the haze is your training partner, and it's a bad one."]
+};
+const quipPick={};
+function quipFor(name,slot){
+  const list=QUIPS[name]; if(!list) return "";
+  if(quipPick[name]==null) quipPick[name]=Math.floor(Math.random()*list.length);
+  return list[(quipPick[name]+slot)%list.length];
+}
+function fmtTime(iso){
+  if(!iso) return "–";
+  const d=new Date(iso);
+  return d.toLocaleString("en-SG",{weekday:"short",hour:"numeric",minute:"2-digit",timeZone:"Asia/Singapore"});
+}
+let lastRefresh=Date.now();
+function fmtClock(t){
+  if(!t) return "–";
+  return new Date(t).toLocaleTimeString("en-SG",{hour:"numeric",minute:"2-digit",timeZone:"Asia/Singapore"});
+}
+function ccaCall(pm,psi){
+  if(pm==null&&psi==null) return null;
+  const over=(psi!=null&&psi>200)||(pm!=null&&pm>150);
+  const near=(psi!=null&&psi>180)||(pm!=null&&pm>130);
+  if(over) return {s:"red",v:"Likely off"};
+  if(near) return {s:"amber",v:"Close call"};
+  return {s:"go",v:"Likely on"};
+}
+function sgMinutes(){
+  const p=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"Asia/Singapore"}).formatToParts(new Date());
+  const g=t=>+p.find(x=>x.type===t).value; return g("hour")*60+g("minute");
+}
+function renderCca(d){
+  const pm=d.pm25[region], psi=d.psi&&d.psi.psi24?d.psi.psi24[region]:null;
+  document.getElementById("ccaRegion").textContent=region[0].toUpperCase()+region.slice(1);
+  const c=ccaCall(pm,psi), pill=document.getElementById("ccaPill");
+  pill.textContent=c?c.v:"–"; pill.className="pill s-"+(c?c.s:"none");
+  const ck=(id,v,lim,nearAt)=>{
+    const el=document.getElementById(id);
+    document.getElementById(id+"V").textContent=v??"–";
+    const st=v==null?"":v>lim?"over":v>nearAt?"near":"ok";
+    el.className="check "+st;
+    document.getElementById(id+"L").textContent=v==null?"No reading":v>lim?"Above "+lim+": cancel":v>nearAt?(lim-v+1)+" from the limit":"Under "+lim+": OK";
+  };
+  ck("ckPsi",psi,200,180); ck("ckPm",pm,150,130);
+  const m=sgMinutes();
+  let msg;
+  if(m>=17*60) msg="After 5pm: check your email for tomorrow's call (sent by 6pm). Any later cancellation comes on WhatsApp.";
+  else if(m<6*60+30) msg="Morning session: watch the WhatsApp group until 6:30am. No message means report as usual.";
+  else if(m<12*60+30) msg="Afternoon session: watch the WhatsApp group until 12:30pm. No message means report as usual.";
+  else msg="Today's notices are done. Tomorrow's call comes at 5pm from the PSI forecast.";
+  document.getElementById("ccaNow").textContent=msg;
+  const nextAt=m>=17*60&&m<18*60?"17:00":(m>=17*60||m<12*60+30)?"session":"17:00";
+  const p5=d.psi5pm, el5=document.getElementById("psi5");
+  if(p5&&p5.psi24&&p5.psi24[region]!=null){
+    const v=p5.psi24[region], dd=new Date(p5.time);
+    const wd=x=>x.toLocaleDateString("en-SG",{weekday:"short",timeZone:"Asia/Singapore"});
+    const nx=wd(new Date(dd.getTime()+864e5));
+    el5.className="psi5 "+(v>200?"over":v>180?"near":"ok");
+    el5.innerHTML="";
+    const t=document.createElement("span"); t.textContent=wd(dd)+" 5pm 24-hr PSI · "+region[0].toUpperCase()+region.slice(1)+": ";
+    const vv=document.createElement("span"); vv.className="p5v"; vv.textContent=v;
+    const ss=document.createElement("span"); ss.className="p5s"; ss.textContent=v>200?"  Above 200":"  Under 200";
+    const al=document.createElement("span"); al.className="p5all";
+    al.textContent="For "+nx+"'s sessions";
+    el5.append(t,vv,ss,al); el5.hidden=false;
+  } else el5.hidden=true;
+  document.querySelectorAll("#ccaSteps li").forEach(li=>li.classList.toggle("next",li.dataset.at===nextAt));
+  renderSess(d);
+}
+const sgHour=t=>+new Intl.DateTimeFormat("en-GB",{hour:"2-digit",hourCycle:"h23",timeZone:"Asia/Singapore"}).format(new Date(t));
+function renderSess(d){
+  const hist=(d.history||[]).filter(h=>h&&h.t);
+  [["pm630",6,"6:30am","morning"],["pm1230",12,"12:30pm","afternoon"]].forEach(([id,hr,cut,ses])=>{
+    const el=document.getElementById(id);
+    const e=hist.filter(h=>sgHour(h.t)===hr).sort((a,b)=>new Date(b.t)-new Date(a.t))[0];
+    const v=e?e[region]:null;
+    if(v==null){el.hidden=true;return;}
+    const dd=new Date(e.t);
+    const wd=dd.toLocaleDateString("en-SG",{weekday:"short",timeZone:"Asia/Singapore"});
+    const hl=dd.toLocaleTimeString("en-SG",{hour:"numeric",timeZone:"Asia/Singapore"});
+    el.className="psi5 "+(v>150?"over":v>130?"near":"ok");
+    el.innerHTML="";
+    const t=document.createElement("span"); t.textContent=wd+" "+hl+" 1-hr PM2.5 · "+region[0].toUpperCase()+region.slice(1)+": ";
+    const vv=document.createElement("span"); vv.className="p5v"; vv.textContent=v;
+    const ss=document.createElement("span"); ss.className="p5s"; ss.textContent=v>150?"  Above 150":"  Under 150";
+    const al=document.createElement("span"); al.className="p5all";
+    al.textContent="Reading in at the "+cut+" "+ses+" cut-off";
+    el.append(t,vv,ss,al); el.hidden=false;
+  });
+}
+function setTile(id,c){
+  const el=document.getElementById(id);
+  el.className="tile s-"+(c?c.s:"none");
+  el.querySelector(".verdict").textContent=c?c.v:"–";
+  el.querySelector("p.call").textContent=c?c.p:"";
+}
+function colorFor(s){return getComputedStyle(document.documentElement).getPropertyValue("--"+(s==="go"?"go":s==="amber"?"amber":"red")).trim();}
+
+function renderRegions(){
+  const box=document.getElementById("regions"); box.innerHTML="";
+  REGIONS.forEach(r=>{
+    const b=document.createElement("button"); b.type="button"; b.id="r-"+r; b.textContent=r;
+    b.setAttribute("aria-pressed",String(r===region));
+    b.onclick=()=>{region=r; renderRegions(); render();};
+    box.appendChild(b);
+  });
+}
+
+function render(){
+  const d=latest;
+  if(!d||!d.pm25){
+    document.getElementById("stamp").textContent="No readings yet. Tap Refresh.";
+    return;
+  }
+  const pm=d.pm25[region], psi=d.psi&&d.psi.psi24?d.psi.psi24[region]:null;
+  const b=band(pm);
+  document.getElementById("pm").textContent=pm??"–";
+  const bandEl=document.getElementById("band");
+  bandEl.textContent=b?b.name:""; bandEl.className="band s-"+(b?b.s:"none");
+  document.getElementById("stamp").textContent="Reading for "+fmtTime(d.pm25.time);
+  document.getElementById("refreshed").textContent="Last refreshed "+fmtClock(lastRefresh)+(d.fetchedAt?" · NEA data fetched "+fmtClock(d.fetchedAt):"");
+
+  const ageH=(Date.now()-new Date(d.pm25.time).getTime())/3.6e6;
+  const st=document.getElementById("stale");
+  if(ageH>3){st.hidden=false; st.textContent="This reading is about "+Math.round(ageH)+" hours old, about as fresh as your gym towel. Check myENV or haze.gov.sg before heading out.";}
+  else st.hidden=true;
+
+  const c=calls(pm,psi);
+  setTile("t-easy",c&&c.easy); setTile("t-hard",c&&c.hard);
+  document.getElementById("quip").textContent=b?quipFor(b.name,0):"";
+
+  const rows=document.getElementById("rows"); rows.innerHTML="";
+  REGIONS.forEach(r=>{
+    const p=d.pm25[r], s=d.psi&&d.psi.psi24?d.psi.psi24[r]:null, cc=calls(p,s);
+    const tr=document.createElement("tr"); if(r===region) tr.className="sel";
+    const name=document.createElement("td"); name.textContent=r[0].toUpperCase()+r.slice(1);
+    const a=document.createElement("td"); a.className="num"; a.textContent=p??"–";
+    const bpsi=document.createElement("td"); bpsi.className="num"; bpsi.textContent=s??"–";
+    const h=document.createElement("td");
+    if(cc){const dot=document.createElement("span"); dot.className="dot"; dot.style.background=colorFor(cc.hard.s); h.append(dot,cc.hard.v);} else h.textContent="–";
+    const cc2=ccaCall(p,s), k=document.createElement("td");
+    if(cc2){const dot=document.createElement("span"); dot.className="dot"; dot.style.background=colorFor(cc2.s); k.append(dot,cc2.v);} else k.textContent="–";
+    tr.append(name,a,bpsi,h,k); rows.appendChild(tr);
+  });
+  renderCca(d);
+  renderTrend(d.history||[]);
+}
+
+function renderTrend(hist){
+  const pts=hist.filter(h=>h&&h[region]!=null).map(h=>({t:new Date(h.t).getTime(),iso:h.t,v:h[region]})).sort((a,b)=>a.t-b.t).slice(-24);
+  const card=document.getElementById("trendCard");
+  if(pts.length<2){card.hidden=true;return;}
+  card.hidden=false;
+  const W=340,H=150,L=30,R=10,T=12,B=30, HR=3.6e6;
+  const t0=pts[0].t, t1=pts[pts.length-1].t, span=Math.max(t1-t0,HR);
+  const max=Math.max(160,...pts.map(p=>p.v));
+  const x=t=>L+(W-L-R)*(t-t0)/span, y=v=>T+(H-T-B)*(1-v/max);
+  const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const muted=css("--muted"), acc=css("--accent"), line=css("--line");
+  const hr=t=>new Date(t).toLocaleTimeString("en-SG",{hour:"numeric",timeZone:"Asia/Singapore"});
+  const day=t=>new Date(t).toLocaleDateString("en-SG",{weekday:"short",timeZone:"Asia/Singapore"});
+  let s="";
+  [[55,"--go"],[150,"--amber"]].forEach(([v,c])=>{
+    s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${css(c)}" stroke-dasharray="4 4" stroke-width="1"/>`;
+    s+=`<text x="${L-4}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="${muted}">${v}</text>`;
+  });
+  // split into runs of consecutive hours; gaps > 90 min are drawn as a faint dashed bridge
+  const runs=[[pts[0]]]; const gaps=[];
+  for(let i=1;i<pts.length;i++){
+    if(pts[i].t-pts[i-1].t>1.5*HR){gaps.push([pts[i-1],pts[i]]); runs.push([pts[i]]);}
+    else runs[runs.length-1].push(pts[i]);
+  }
+  gaps.forEach(([a,b])=>{
+    const xa=x(a.t), xb=x(b.t);
+    s+=`<rect x="${xa}" y="${T}" width="${xb-xa}" height="${H-T-B}" fill="${line}" fill-opacity="0.35"/>`;
+    s+=`<line x1="${xa}" y1="${y(a.v)}" x2="${xb}" y2="${y(b.v)}" stroke="${muted}" stroke-width="1.2" stroke-dasharray="3 4"/>`;
+    if(xb-xa>44) s+=`<text x="${(xa+xb)/2}" y="${T+11}" text-anchor="middle" font-size="9.5" fill="${muted}">no readings</text>`;
+  });
+  runs.forEach(run=>{
+    if(run.length<2) return;
+    const pl=run.map(p=>`${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+    s+=`<polygon points="${x(run[0].t)},${H-B} ${pl} ${x(run[run.length-1].t)},${H-B}" fill="${acc}" fill-opacity="0.12"/>`;
+    s+=`<polyline points="${pl}" fill="none" stroke="${acc}" stroke-width="2" stroke-linejoin="round"/>`;
+  });
+  pts.forEach((p,i)=>{
+    const last=i===pts.length-1;
+    s+=`<circle cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${last?4.5:2.6}" fill="${acc}" stroke="${css("--surface")}" stroke-width="1"><title>${day(p.t)} ${hr(p.t)}: ${p.v} µg/m³</title></circle>`;
+  });
+  const lp=pts[pts.length-1];
+  s+=`<text x="${Math.min(x(lp.t),W-R)}" y="${y(lp.v)-8}" text-anchor="end" font-size="11" font-weight="700" fill="${css("--ink")}">${lp.v}</text>`;
+  // x labels: start, end, and each midnight in range
+  const labels=[{t:t0,txt:day(t0)+" "+hr(t0),a:"start"},{t:t1,txt:day(t1)+" "+hr(t1),a:"end"}];
+  const sg=8*HR; let m=Math.ceil((t0+sg)/(24*HR))*24*HR-sg;
+  for(;m<t1;m+=24*HR){ if(m-t0>10*HR&&t1-m>10*HR) labels.push({t:m,txt:day(m),a:"middle"}); }
+  labels.forEach(l=>{
+    s+=`<line x1="${x(l.t)}" x2="${x(l.t)}" y1="${H-B}" y2="${H-B+4}" stroke="${muted}"/>`;
+    s+=`<text x="${x(l.t)}" y="${H-B+16}" text-anchor="${l.a}" font-size="10" fill="${muted}">${l.txt}</text>`;
+  });
+  document.getElementById("trend").innerHTML=s;
+  const hasGap=gaps.length>0;
+  document.getElementById("trendLabel").textContent=pts.length+" hourly readings · "+region;
+  document.getElementById("trendNote").textContent=(hasGap?"Shaded = hours with no reading stored; the dashed line just joins the ends. ":"")+"Each dot is one NEA hourly reading.";
+}
+
+const SOURCES={
+  v2:{base:"https://api-open.data.gov.sg/v2/real-time/api/",path:x=>x,dp:v=>"date"},
+  v1:{base:"https://api.data.gov.sg/v1/environment/",path:x=>x,dp:v=>v.length>10?"date_time":"date"}
+};
+let SRC=SOURCES.v2, srcName="v2";
+const RK=["north","south","east","west","central"];
+const num=v=>(typeof v==="number"||(typeof v==="string"&&/^\d{1,4}$/.test(v)))&&Number.isFinite(+v)&&+v>=0&&+v<10000?Math.round(+v):null;
+const ISO=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+const iso=t=>typeof t==="string"&&ISO.test(t)&&!isNaN(new Date(t))?t:null;
+const pick=o=>{const r={};RK.forEach(k=>r[k]=o&&typeof o==="object"?num(o[k]):null);return r;};
+function cleanDoc(d){
+  if(!d||typeof d!=="object"||!d.pm25||!iso(d.pm25.time)) return null;
+  const out={pm25:Object.assign({time:d.pm25.time},pick(d.pm25))};
+  if(d.psi&&iso(d.psi.time)) out.psi={time:d.psi.time,psi24:pick(d.psi.psi24),pm25_24:pick(d.psi.pm25_24)};
+  if(d.psi5pm&&iso(d.psi5pm.time)) out.psi5pm={time:d.psi5pm.time,psi24:pick(d.psi5pm.psi24)};
+  out.history=(Array.isArray(d.history)?d.history:[]).filter(h=>h&&iso(h.t)).slice(-24).map(h=>Object.assign({t:h.t},pick(h)));
+  if(iso(d.fetchedAt)) out.fetchedAt=d.fetchedAt;
+  return out;
+}
+const HOUR=3.6e6, sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// data.gov.sg refuses bursts of requests, so retry a refused or failed request once after a short pause.
+async function fetchRetry(u,opts){
+  for(let a=0;;a++){
+    try{const r=await fetch(u,opts); if(r.ok||a>=1||(r.status!==429&&r.status<500)) return r;}
+    catch(e){if(a>=1) throw e;}
+    await sleep(1500+Math.random()*1000);
+  }
+}
+const sgDate=ms=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Singapore",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(ms));
+async function api(path,params){
+  const items=[]; let token=null, n=0;
+  do{
+    const u=new URL(SRC.base+SRC.path(path));
+    Object.entries(params||{}).forEach(([k,v])=>u.searchParams.set(k==="date"?SRC.dp(v):k,v));
+    if(token) u.searchParams.set("paginationToken",token);
+    const r=await fetchRetry(u,{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(j.code!==0&&j.code!=null) throw new Error(j.errorMsg||"API error");
+    ((j.data&&j.data.items)||j.items||[]).forEach(i=>items.push(i));
+    token=j.data&&j.data.paginationToken; n++;
+  }while(token&&n<6);
+  return items;
+}
+const tsOf=i=>iso(i&&(i.timestamp||i.updatedTimestamp));
+async function fetchAll(){
+  const now=Date.now();
+  // One request at a time, so the page stays under data.gov.sg's rate limit.
+  const pmNow=await api("pm25");
+  const p=pmNow[pmNow.length-1];
+  if(!p||!tsOf(p)||!p.readings) throw new Error("No PM2.5 reading");
+  await sleep(300);
+  const psiNow=await api("psi").catch(()=>[]);
+  const s=psiNow[psiNow.length-1];
+  // Keep the hours already saved, add the new one, and only ask NEA for days that still have gaps.
+  const pt=new Date(tsOf(p)).getTime(), hmap={};
+  const add=h=>{const t=h&&iso(h.t); if(!t) return; const ms=new Date(t).getTime(); if(ms<=pt&&ms>pt-24*HOUR) hmap[ms]=Object.assign({t},pick(h));};
+  ((latest&&latest.history)||[]).forEach(add);
+  add(Object.assign({t:tsOf(p)},p.readings.pm25_one_hourly));
+  const need=new Set();
+  for(let k=0;k<24;k++){const ms=pt-k*HOUR; if(!hmap[ms]) need.add(sgDate(ms));}
+  for(const day of need){
+    await sleep(300);
+    try{(await api("pm25",{date:day})).forEach(i=>{const t=tsOf(i), v=i&&i.readings&&i.readings.pm25_one_hourly; if(t&&v) add(Object.assign({t},v));});}catch(e){}
+  }
+  const history=Object.values(hmap).sort((a,b)=>new Date(a.t)-new Date(b.t)).slice(-24);
+  const d={
+    pm25:Object.assign({time:tsOf(p)},pick(p.readings.pm25_one_hourly)),
+    psi:s?{time:tsOf(s),psi24:pick(s.readings.psi_twenty_four_hourly),pm25_24:pick(s.readings.pm25_twenty_four_hourly)}:(latest&&latest.psi),
+    history, fetchedAt:new Date().toISOString()
+  };
+  // 5pm 24-hr PSI (SP-CCA decision): most recent 5pm at or before now
+  const sgH=+new Intl.DateTimeFormat("en-GB",{hour:"2-digit",hourCycle:"h23",timeZone:"Asia/Singapore"}).format(new Date(now));
+  const d5=sgDate(sgH>=17?now:now-864e5), D5=d5+"T17:00:00+08:00";
+  if(s&&tsOf(s)===D5) d.psi5pm={time:D5,psi24:pick(s.readings.psi_twenty_four_hourly)};
+  else if(latest&&latest.psi5pm&&latest.psi5pm.time===D5) d.psi5pm=latest.psi5pm;
+  else{
+    try{
+      await sleep(300);
+      const it=(await api("psi",{date:d5+"T17:30:00"})).find(i=>tsOf(i)===D5);
+      if(it) d.psi5pm={time:D5,psi24:pick(it.readings.psi_twenty_four_hourly)};
+    }catch(e){}
+    if(!d.psi5pm&&latest&&latest.psi5pm) d.psi5pm=latest.psi5pm;
+  }
+  return d;
+}
+let busy=false;
+async function refreshNow(){
+  if(busy) return "Already refreshing…";
+  busy=true;
+  const btn=document.getElementById("refreshBtn"), err=document.getElementById("fetchErr");
+  btn.disabled=true; btn.classList.add("busy"); btn.querySelector("span").textContent="Refreshing…";
+  const before=latest&&latest.pm25?latest.pm25.time:null;
+  let msg;
+  try{
+    let d=null, first=null;
+    for(const name of [srcName,...Object.keys(SOURCES).filter(n=>n!==srcName)]){
+      SRC=SOURCES[name];
+      try{d=await fetchAll(); srcName=name; break;}catch(e){first=first||e;}
+    }
+    if(!d) throw first;
+    d=cleanDoc(d); if(!d) throw new Error("unexpected data");
+    latest=d; lastRefresh=Date.now(); err.hidden=true;
+    try{localStorage.setItem("hazeLatest",JSON.stringify(latest));}catch(e){}
+    render();
+    msg=latest.pm25.time!==before?"Updated: "+fmtTime(latest.pm25.time):"Up to date: "+fmtTime(latest.pm25.time);
+  }catch(e){
+    err.hidden=false; err.textContent="Couldn't reach data.gov.sg ("+e.message+"). Showing the last saved readings. "+(location.protocol==="file:"||window.top!==window.self?"If you opened this inside an app preview, open it in Safari or Chrome instead (for example from its Netlify link).":"Check your connection and tap Refresh.");
+    msg="Couldn't refresh";
+  }
+  btn.disabled=false; btn.classList.remove("busy"); btn.querySelector("span").textContent="Refresh";
+  busy=false; return msg;
+}
+document.getElementById("refreshBtn").onclick=()=>refreshNow();
+(()=>{
+  const ind=document.getElementById("ptr"), TH=64;
+  let y0=null, p=0, pbusy=false;
+  const atTop=()=>(document.scrollingElement||document.documentElement).scrollTop<=0;
+  const place=(px,snap)=>{ind.classList.toggle("snap",!!snap); ind.style.transform="translate(-50%,"+(px-56)+"px)";};
+  addEventListener("touchstart",e=>{
+    if(pbusy||e.touches.length!==1||!atTop()){y0=null;return;}
+    y0=e.touches[0].clientY; p=0;
+  },{passive:true});
+  addEventListener("touchmove",e=>{
+    if(y0==null) return;
+    const dy=e.touches[0].clientY-y0;
+    if(dy<=0){p=0; place(0); return;}
+    if(e.cancelable) e.preventDefault();
+    p=Math.min(dy*0.5,96);
+    ind.textContent=p>=TH?"Release to refresh":"Pull to refresh";
+    place(p);
+  },{passive:false});
+  addEventListener("touchend",async()=>{
+    if(y0==null) return; y0=null;
+    if(p<TH){place(0,true); return;}
+    pbusy=true; ind.textContent="Refreshing…"; place(TH,true);
+    const msg=await refreshNow();
+    ind.textContent=msg;
+    setTimeout(()=>{place(0,true); pbusy=false;},1600);
+  });
+})();
+try{const c=cleanDoc(JSON.parse(localStorage.getItem("hazeLatest")||"null")); if(c&&c.pm25&&(!latest||!latest.pm25||new Date(c.pm25.time)>=new Date(latest.pm25.time))) latest=c;}catch(e){}
+latest=cleanDoc(latest);
+renderRegions(); render(); refreshNow();
+// Re-check every 15 min while the page is open, and when you come back to it.
+setInterval(()=>{if(document.visibilityState==="visible") refreshNow();},15*60*1000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-lastRefresh>5*60*1000) refreshNow();});
+</script>
+</body>
+</html>
